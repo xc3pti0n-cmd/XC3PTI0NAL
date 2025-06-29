@@ -1,1 +1,4 @@
-// This is a placeholder for my-limit/manifest.json
+{
+  "name": "my-limit",
+  "description": "This is a placeholder for my-limit package"
+}
