@@ -1,1 +1,264 @@
-// This is a placeholder for my-limit/public/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f4f6f9;
+    color: #333;
+    padding: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  h1 { font-size: 1.5rem; color: #1a1a2e; }
+  
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: #fff;
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    text-align: center;
+  }
+  .stat-card .num { font-size: 1.8rem; font-weight: 700; }
+  .stat-card .label { font-size: 0.8rem; color: #666; margin-top: 4px; }
+  .pending .num { color: #f39c12; }
+  .progress .num { color: #3498db; }
+  .completed .num { color: #27ae60; }
+
+  .filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 20px;
+    background: #fff;
+    color: #666;
+    cursor: pointer;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    transition: all 0.2s;
+  }
+  .filter-btn.active {
+    background: #1a1a2e;
+    color: #fff;
+  }
+
+  .task-list { display: grid; gap: 12px; }
+  .task-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border-left: 4px solid #ccc;
+    transition: transform 0.2s;
+  }
+  .task-card:hover { transform: translateY(-2px); }
+  .task-card.priority-Critical { border-left-color: #e74c3c; }
+  .task-card.priority-High { border-left-color: #f39c12; }
+  .task-card.priority-Medium { border-left-color: #3498db; }
+  .task-card.priority-Low { border-left-color: #95a5a6; }
+
+  .task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .task-name { font-weight: 600; font-size: 1rem; }
+  .task-id { font-size: 0.75rem; color: #999; }
+  
+  .task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: #666;
+    margin: 8px 0;
+  }
+  .badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge-Pending { background: #fef3cd; color: #856404; }
+  .badge-In\ Progress { background: #d1ecf1; color: #0c5460; }
+  .badge-Completed { background: #d4edda; color: #155724; }
+  .badge-Blocked { background: #f8d7da; color: #721c24; }
+
+  select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    font-size: 0.85rem;
+    background: #fff;
+    cursor: pointer;
+  }
+
+  .notes {
+    font-size: 0.85rem;
+    color: #555;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+  }
+
+  .loading, .empty {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+  }
+
+  @media (max-width: 500px) {
+    h1 { font-size: 1.2rem; }
+    .stat-card .num { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>?? Task Tracker</h1>
+  <button class="filter-btn" onclick="loadTasks()">?? Refresh</button>
+</header>
+
+<div class="stats">
+  <div class="stat-card pending"><div class="num" id="statPending">0</div><div class="label">Pending</div></div>
+  <div class="stat-card progress"><div class="num" id="statProgress">0</div><div class="label">In Progress</div></div>
+  <div class="stat-card completed"><div class="num" id="statCompleted">0</div><div class="label">Completed</div></div>
+</div>
+
+<div class="filters">
+  <button class="filter-btn active" data-filter="All">All</button>
+  <button class="filter-btn" data-filter="Pending">Pending</button>
+  <button class="filter-btn" data-filter="In Progress">In Progress</button>
+  <button class="filter-btn" data-filter="Completed">Completed</button>
+  <button class="filter-btn" data-filter="Blocked">Blocked</button>
+</div>
+
+<div class="task-list" id="taskList">
+  <div class="loading">Loading tasks...</div>
+</div>
+
+<script>
+  // ?? REPLACE THIS with your deployed Web App URL
+  const API_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
+  
+  let allTasks = [];
+  let currentFilter = "All";
+
+  async function loadTasks() {
+    document.getElementById('taskList').innerHTML = '<div class="loading">Loading...</div>';
+    try {
+      const res = await fetch(`${API_URL}?action=getTasks`);
+      allTasks = await res.json();
+      updateStats();
+      renderTasks();
+    } catch (err) {
+      document.getElementById('taskList').innerHTML = 
+        '<div class="empty">?? Failed to load tasks. Check your API URL.</div>';
+    }
+  }
+
+  function updateStats() {
+    const counts = { Pending: 0, "In Progress": 0, Completed: 0 };
+    allTasks.forEach(t => {
+      if (counts[t.Status] !== undefined) counts[t.Status]++;
+    });
+    document.getElementById('statPending').textContent = counts.Pending;
+    document.getElementById('statProgress').textContent = counts["In Progress"];
+    document.getElementById('statCompleted').textContent = counts.Completed;
+  }
+
+  function renderTasks() {
+    const list = document.getElementById('taskList');
+    const filtered = currentFilter === "All" 
+      ? allTasks 
+      : allTasks.filter(t => t.Status === currentFilter);
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="empty">No tasks found</div>';
+      return;
+    }
+
+    list.innerHTML = filtered.map(task => `
+      <div class="task-card priority-${task.Priority}">
+        <div class="task-header">
+          <div>
+            <div class="task-name">${task["Task Name"]}</div>
+            <div class="task-id">${task["Task ID"]}</div>
+          </div>
+          <span class="badge badge-${task.Status.replace(' ', '\\ ')}">${task.Status}</span>
+        </div>
+        <div class="task-meta">
+          <span>?? ${task["Assigned To"]}</span>
+          <span>?? ${task.Priority}</span>
+          <span>?? ${formatDate(task["Due Date"])}</span>
+        </div>
+        ${task.Notes ? `<div class="notes">?? ${task.Notes}</div>` : ""}
+        <div style="margin-top:10px;">
+          <select onchange="changeStatus('${task["Task ID"]}', this.value)">
+            ${["Pending", "In Progress", "Completed", "Blocked"].map(s => 
+              `<option ${s === task.Status ? "selected" : ""}>${s}</option>`
+            ).join("")}
+          </select>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function formatDate(d) {
+    if (!d) return "—";
+    const date = new Date(d);
+    return isNaN(date) ? d : date.toLocaleDateString();
+  }
+
+  async function changeStatus(id, status) {
+    try {
+      await fetch(`${API_URL}?action=updateStatus&id=${id}&status=${encodeURIComponent(status)}`);
+      const task = allTasks.find(t => t["Task ID"] === id);
+      if (task) task.Status = status;
+      updateStats();
+      renderTasks();
+    } catch (err) {
+      alert("Failed to update status");
+    }
+  }
+
+  document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      renderTasks();
+    });
+  });
+
+  loadTasks();
+  setInterval(loadTasks, 60000); // Auto-refresh every 60s
+</script>
+</body>
+</html>
